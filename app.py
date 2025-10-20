@@ -173,7 +173,7 @@ def process_checkout():
         discount_applied = total_amount * 0.10
         total_amount -= discount_applied
         flash(f'Discount applied! You saved ${discount_applied:.2f}', 'success')
-    elif discount_code == 'WELCOME10':
+    elif discount_code == 'WELCOME20':
         discount_applied = total_amount * 0.20
         total_amount -= discount_applied
         flash(f'Welcome discount applied! You saved ${discount_applied:.2f}', 'success')
