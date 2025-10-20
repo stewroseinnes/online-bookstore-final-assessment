@@ -6,12 +6,12 @@ from models import Book, Cart, CartItem, User, Order, PaymentGateway, EmailServi
 @pytest.fixture
 def book1():
     """Creates a sample Book object for tests (Fixture for all test cases)."""
-    return Book("Cry, the Beloved Country", "Fiction", 10.99, "img1.jpg")  # Alan Paton's classic novel
+    return Book("1984", "Fiction", 10.99, "img1.jpg")  # Alan Paton's classic novel
 
 @pytest.fixture
 def book2():
     """Creates another sample Book object for tests (Fixture for all test cases)."""
-    return Book("The Power of One", "Historical Fiction", 8.99, "img2.jpg")  # Bryce Courtenay's novel
+    return Book("The Great Gatsby", "Historical Fiction", 8.99, "img2.jpg")  # Bryce Courtenay's novel
 
 # --- Unit Tests for the Cart Class ---
 
@@ -27,7 +27,7 @@ class TestCart:
         cart = Cart()  # Initialises a new empty cart
         cart.add_book(book1, 2)  # Adds 2 copies of the book
         assert len(cart.items) == 1, "Cart should contain exactly one item."
-        assert cart.items["Cry, the Beloved Country"].quantity == 2, "Quantity should be set to 2."
+        assert cart.items["1984"].quantity == 2, "Quantity should be set to 2."
         assert cart.get_total_items() == 2, "Total item count should reflect 2 items."
 
     def test_add_existing_book(self, book1):
@@ -39,7 +39,7 @@ class TestCart:
         cart = Cart()  # Initialises a new empty cart
         cart.add_book(book1, 1)  # Adds 1 copy of the book
         cart.add_book(book1, 3)  # Adds 3 more copies of the same book
-        assert cart.items["Cry, the Beloved Country"].quantity == 4, "Quantity should be incremented to 4."
+        assert cart.items["1984"].quantity == 4, "Quantity should be incremented to 4."
 
     def test_remove_book(self, book1, book2):
         """
@@ -50,9 +50,9 @@ class TestCart:
         cart = Cart()  # Initialises a new empty cart
         cart.add_book(book1)  # Adds first book with default quantity (1)
         cart.add_book(book2, 2)  # Adds second book with quantity 2
-        cart.remove_book("Cry, the Beloved Country")  # Removes the first book
-        assert "Cry, the Beloved Country" not in cart.items, "Book should be removed from the cart."
-        assert "The Power of One" in cart.items, "Other books should remain in the cart."
+        cart.remove_book("1984")  # Removes the first book
+        assert "1984" not in cart.items, "Book should be removed from the cart."
+        assert "The Great Gatsby" in cart.items, "Other books should remain in the cart."
         assert cart.get_total_items() == 2, "Total item count should reflect remaining items."
 
     def test_update_quantity(self, book1):
@@ -63,8 +63,8 @@ class TestCart:
         """
         cart = Cart()  # Initialises a new empty cart
         cart.add_book(book1, 1)  # Adds 1 copy of the book
-        cart.update_quantity("Cry, the Beloved Country", 5)  # Updates quantity to 5
-        assert cart.items["Cry, the Beloved Country"].quantity == 5, "Quantity should be updated to 5."
+        cart.update_quantity("1984", 5)  # Updates quantity to 5
+        assert cart.items["1984"].quantity == 5, "Quantity should be updated to 5."
 
     def test_inefficient_get_total_price(self, book1, book2):
         """
@@ -177,8 +177,8 @@ class TestCartEdgeCases:
         cart = Cart()  # Initialises a new empty cart
         cart.add_book(book1, 1)  # Adds 1 copy of the book
         with pytest.raises(ValueError, match="Quantity must be a valid number"):  # Expects a ValueError
-            cart.update_quantity("Cry, the Beloved Country", "abc")  # Attempts non-numeric input
-        assert cart.items["Cry, the Beloved Country"].quantity == 1, "Quantity should remain unchanged."
+            cart.update_quantity("1984", "abc")  # Attempts non-numeric input
+        assert cart.items["1984"].quantity == 1, "Quantity should remain unchanged."
         assert cart.get_total_items() == 1, "Total item count should remain unchanged."
 
     def test_update_quantity_with_negative_input(self, book1):
@@ -190,8 +190,8 @@ class TestCartEdgeCases:
         cart = Cart()  # Initialises a new empty cart
         cart.add_book(book1, 1)  # Adds 1 copy of the book
         with pytest.raises(ValueError, match="Quantity must be greater than zero"):  # Expects a ValueError
-            cart.update_quantity("Cry, the Beloved Country", -1)  # Attempts negative quantity
-        assert cart.items["Cry, the Beloved Country"].quantity == 1, "Quantity should remain unchanged."
+            cart.update_quantity("1984", -1)  # Attempts negative quantity
+        assert cart.items["1984"].quantity == 1, "Quantity should remain unchanged."
         assert cart.get_total_items() == 1, "Total item count should remain unchanged."
 
     def test_remove_non_existent_book(self, book1):
@@ -202,7 +202,7 @@ class TestCartEdgeCases:
         """
         cart = Cart()  # Initialises a new empty cart
         cart.add_book(book1, 1)  # Adds 1 copy of the book
-        cart.remove_book("The Power of One")  # Attempts to remove a book not in the cart
-        assert "Cry, the Beloved Country" in cart.items, "Existing book should remain in the cart."
-        assert "The Power of One" not in cart.items, "Non-existent book should not be added."
+        cart.remove_book("The Great Gatsby")  # Attempts to remove a book not in the cart
+        assert "1984" in cart.items, "Existing book should remain in the cart."
+        assert "The Great Gatsby" not in cart.items, "Non-existent book should not be added."
         assert cart.get_total_items() == 1, "Total item count should remain unchanged."

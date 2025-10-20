@@ -53,8 +53,8 @@ def test_global_cart_bug(client):
     Demonstrates unintended cart item sharing between clients, extending TC-SC-02 to test session isolation.
     """
     # Client 1 adds an item to the cart
-    response1 = client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'}, follow_redirects=True)
-    assert b'Added 1 "The Power of One" to cart!' in response1.data  # Verifies item added
+    response1 = client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '1'}, follow_redirects=True)
+    assert b'Added 1 "The Great Gatsby" to cart!' in response1.data  # Verifies item added
     
     # Creates a second, independent client
     client2 = flask_app.test_client()
@@ -64,7 +64,7 @@ def test_global_cart_bug(client):
     assert response2.status_code == 200  # Checks for successful cart page load
     
     # Checks if Client 2's cart contains Client 1's item
-    assert b"The Power of One" in response2.data, "BUG CONFIRMED: Client 1's item appears in Client 2's cart."
+    assert b"The Great Gatsby" in response2.data, "BUG CONFIRMED: Client 1's item appears in Client 2's cart."
     assert not b"Your cart is empty" in response2.data, "BUG CONFIRMED: Cart should be empty for a new user."
 
 class TestUserAuthentication:
@@ -134,11 +134,11 @@ class TestCartAndCheckout:
         Verifies adding a single book to the cart and viewing the cart page (FR-002).
         Ensures the book and quantity are correctly reflected in the cart.
         """
-        # client.post('/add-to-cart', data={'title': 'Cry, the Beloved Country', 'quantity': '2'})
+        # client.post('/add-to-cart', data={'title': '1984', 'quantity': '2'})
         client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '2'}, follow_redirects=True)
         response = client.get('/cart')
         assert response.status_code == 200  # Verifies cart page loads
-        # assert b"Cry, the Beloved Country" in response.data  # Confirms book in cart
+        # assert b"1984" in response.data  # Confirms book in cart
         assert b"The Great Gatsby" in response.data  # Confirms book in cart
         assert b'value="2"' in response.data  # Confirms quantity
 
@@ -149,7 +149,7 @@ class TestCartAndCheckout:
         Addresses DEF-001 by ensuring an error message is displayed and the cart remains unchanged.
         """
         # Attempts to add a book with invalid quantity
-        response = client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': 'abc'}, follow_redirects=True)
+        response = client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': 'abc'}, follow_redirects=True)
         
         assert response.status_code == 200  # Verifies successful response
         assert b"Invalid quantity. Please enter a valid number." in response.data  # Checks for error message
@@ -161,11 +161,11 @@ class TestCartAndCheckout:
         Verifies that updating a book's quantity to 0 incorrectly leaves the item in the cart (FR-002).
         Confirms a bug where the item is not removed.
         """
-        client.post('/add-to-cart', data={'title': 'Disgrace', 'quantity': '1'})
-        client.post('/update-cart', data={'title': 'Disgrace', 'quantity': '0'}, follow_redirects=True)
+        client.post('/add-to-cart', data={'title': 'I Ching', 'quantity': '1'})
+        client.post('/update-cart', data={'title': 'I Ching', 'quantity': '0'}, follow_redirects=True)
         
         response = client.get('/cart')
-        assert b'Disgrace' in response.data, "BUG CONFIRMED: Item not removed when quantity updated to 0."
+        assert b'I Ching' in response.data, "BUG CONFIRMED: Item not removed when quantity updated to 0."
         assert b'value="0"' in response.data  # Confirms zero quantity displayed
 
     def test_remove_from_cart(self, client):
@@ -175,10 +175,10 @@ class TestCartAndCheckout:
         Ensures the book is removed and a confirmation message is displayed.
         """
         # Adds a book to the cart
-        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
+        client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '1'})
         
         # Sends POST request to remove book without following redirect
-        response_post = client.post('/remove-from-cart', data={'title': 'The Power of One'})
+        response_post = client.post('/remove-from-cart', data={'title': 'The Great Gatsby'})
         
         # Verifies redirect response
         assert response_post.status_code == 302, "Expected a redirect after removing an item."
@@ -189,7 +189,7 @@ class TestCartAndCheckout:
         
         # Verifies cart page and flash message
         assert response_get.status_code == 200, "Cart page should load successfully."
-        assert b'Removed "The Power of One" from your cart.' in response_get.data, "Flash message should confirm removal."
+        assert b'Removed "The Great Gatsby" from your cart.' in response_get.data, "Flash message should confirm removal."
         assert global_cart.is_empty(), "Cart should be empty after item removal."
 
     def test_checkout_with_case_sensitive_discount(self, client):
@@ -199,7 +199,7 @@ class TestCartAndCheckout:
         Tests successful discount application, extending TC-SC-06 for discount functionality.
         """
         # Adds a book to the cart
-        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
+        client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '1'})
         
         # Submits checkout with lowercase discount code
         checkout_data = {
@@ -221,7 +221,7 @@ class TestCartAndCheckout:
         Verifies that checkout fails with empty credit card fields (FR-002).
         Ensures validation prevents proceeding with incomplete payment details.
         """
-        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
+        client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '1'})
         checkout_data = {
             'name': 'Test User', 'email': 'test@checkout.com', 'address': '123 Lane',
             'city': 'Testville', 'zip_code': '12345', 'payment_method': 'credit_card',
@@ -237,7 +237,7 @@ class TestCartAndCheckout:
         Tests successful payment and order confirmation by manually following redirects.
         """
         # Adds a book to the cart
-        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
+        client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '1'})
         checkout_data = {
             'name': 'Test User', 'email': 'test@example.com', 'address': '123 Test St',
             'city': 'Testville', 'zip_code': '12345', 'payment_method': 'credit_card',
@@ -264,7 +264,7 @@ class TestCartAndCheckout:
         Verifies that the checkout process handles a failed payment correctly (FR-002).
         Ensures the cart remains unchanged and an error is displayed.
         """
-        client.post('/add-to-cart', data={'title': 'Cry, the Beloved Country', 'quantity': '1'})
+        client.post('/add-to-cart', data={'title': '1984', 'quantity': '1'})
         checkout_data = {
             'name': 'Fail User', 'email': 'fail@checkout.com', 'address': '404 Error Street',
             'city': 'Failburg', 'zip_code': '54321', 'payment_method': 'credit_card',
@@ -299,7 +299,7 @@ class TestCartAndCheckout:
         Addresses DEF-001 and feedback on negative test coverage.
         """
         # Action: Attempt to add a book with a negative quantity
-        response = client.post('/add-to-cart', data={'title': 'Cry, the Beloved Country', 'quantity': '-1'}, follow_redirects=True)
+        response = client.post('/add-to-cart', data={'title': '1984', 'quantity': '-1'}, follow_redirects=True)
         
         # Assert: Check for error message and unchanged cart
         assert response.status_code == 200, "Response should be successful with an error message."
@@ -313,15 +313,15 @@ class TestCartAndCheckout:
         Addresses DEF-001, TC-SC-08, and feedback on negative test coverage.
         """
         # Arrange: Add a book to the cart
-        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
+        client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '1'})
         
         # Action: Attempt to update with a non-numeric quantity
-        response = client.post('/update-cart', data={'title': 'The Power of One', 'quantity': 'abc'}, follow_redirects=True)
+        response = client.post('/update-cart', data={'title': 'The Great Gatsby', 'quantity': 'abc'}, follow_redirects=True)
         
         # Assert: Check for error message and unchanged cart state
         assert response.status_code == 200, "Response should be successful with an error message."
         assert b"Invalid quantity. Please enter a valid number." in response.data, "Expected error message for non-numeric input."
-        assert global_cart.items['The Power of One'].quantity == 1, "Cart quantity should remain unchanged."
+        assert global_cart.items['The Great Gatsby'].quantity == 1, "Cart quantity should remain unchanged."
         assert b'value="1"' in response.data, "Cart page should reflect original quantity."
 
     def test_checkout_empty_cart(self, client):
@@ -345,16 +345,16 @@ class TestCartAndCheckout:
         Addresses feedback on edge-case coverage.
         """
         # Arrange: Add a book to the cart
-        client.post('/add-to-cart', data={'title': 'Disgrace', 'quantity': '1'})
+        client.post('/add-to-cart', data={'title': 'I Ching', 'quantity': '1'})
         
         # Action: Attempt to remove a non-existent book
-        response = client.post('/remove-from-cart', data={'title': 'Born a Crime'}, follow_redirects=True)
+        response = client.post('/remove-from-cart', data={'title': 'Moby Dick'}, follow_redirects=True)
         
         # Assert: Check that cart state is unchanged and no error occurs
         assert response.status_code == 200, "Response should be successful."
-        assert b"Disgrace" in response.data, "Existing book should remain in the cart."
-        assert b"Born a Crime" not in response.data, "Non-existent book should not appear."
-        assert global_cart.items['Disgrace'].quantity == 1, "Cart quantity should remain unchanged."
+        assert b"I Ching" in response.data, "Existing book should remain in the cart."
+        assert b"Moby Dick" not in response.data, "Non-existent book should not appear."
+        assert global_cart.items['I Ching'].quantity == 1, "Cart quantity should remain unchanged."
 
 class TestPerformance:
     """
@@ -406,7 +406,7 @@ class TestPerformance:
         Uses cProfile to verify performance improvements.
         """
         # Sets up cart with a large number of items
-        client.post('/add-to-cart', data={'title': 'Born a Crime', 'quantity': '500'})
+        client.post('/add-to-cart', data={'title': 'Moby Dick', 'quantity': '500'})
         checkout_data = {
             'name': 'Profile User', 'email': 'profile@test.com', 'address': '123 Profile Lane',
             'city': 'Proville', 'zip_code': '54321', 'payment_method': 'credit_card',
@@ -433,7 +433,7 @@ class TestPerformance:
         assert 'get_total_price' not in top_functions, "PROFILER OK: get_total_price() is no longer a performance hotspot."
 
     # Compares original vs. optimised get_total_price performance
-    def test_get_total_price_optimized(self, client):
+    def test_get_total_price_optimised(self, client):
         book = Book("Test", "Cat", 10.0, "")
         global_cart.add_book(book, 50000)
 
@@ -443,5 +443,5 @@ class TestPerformance:
 
         # After (use optimised method)
         optimised_time = timeit.timeit(global_cart.get_total_price, number=100)
-        print(f"Optimised time: {optimized_time:.6f}s")
+        print(f"Optimised time: {optimised_time:.6f}s")
         assert optimised_time < original_time / 10, "Optimisation should be at least 10x faster"
