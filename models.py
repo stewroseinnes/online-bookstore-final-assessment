@@ -39,10 +39,13 @@ class Cart:
         self.items = {}  # Using dict with book title as key for easy lookup
 
     def add_book(self, book, quantity=1):
-        #### FIX: Added validation for quantity to fix TestCartEdgeCases::test_update_quantity_with_negative_input
+
+        # FIX: TestCartEdgeCases::test_add_book_with_negative_quantity && TestCartEdgeCases::test_add_book_with_zero_quantity
+        # Validate that quantity is positive (fixes edge case for negative input)
         if quantity <= 0:
-            raise ValueError("Quantity must be positive")
-        ####
+            raise ValueError("Quantity must be greater than zero")
+        # END FIX
+
         if book.title in self.items:
             self.items[book.title].quantity += quantity
         else:
@@ -53,15 +56,34 @@ class Cart:
             del self.items[book_title]
 
     def update_quantity(self, book_title, quantity):
+        # if book_title in self.items:
+        #     self.items[book_title].quantity = quantity
+
+        # FIX: TestCartEdgeCases::test_update_quantity_with_non_numeric_input && TestCartEdgeCases::test_update_quantity_with_negative_input
+        # Validate that quantity is positive (fixes edge case for negative input)
         if book_title in self.items:
-            self.items[book_title].quantity = quantity
+                try:
+                    quantity = int(quantity)  # Attempt to convert quantity to an integer
+                    if quantity < 0:
+                        raise ValueError("Quantity must be greater than zero")  # Raise error for negative quantities
+                    elif quantity == 0:
+                        self.remove_book(book_title)  # Remove item if quantity is zero
+                    else:
+                        self.items[book_title].quantity = quantity  # Update quantity if positive
+                except (ValueError, TypeError):
+                    raise ValueError("Quantity must be a valid number")
+        # END FIX
 
     def get_total_price(self):
-        total = 0
-        for item in self.items.values():
-            for i in range(item.quantity):
-                total += item.book.price
-        return total
+        # total = 0
+        # for item in self.items.values():
+        #     for i in range(item.quantity):
+        #         total += item.book.price
+        # return total
+
+        # FIX: tests/test_app.py::TestPerformance::test_get_total_price_is_efficient
+        # Optimized to O(n) by removing inner loop
+        return sum(item.book.price * item.quantity for item in self.items.values())  # O(n)
 
     def get_total_items(self):
         return sum(item.quantity for item in self.items.values())

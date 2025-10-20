@@ -159,7 +159,11 @@ def process_checkout():
         'cvv': request.form.get('cvv')
     }
     
-    discount_code = request.form.get('discount_code', '')
+    # discount_code = request.form.get('discount_code', '')
+    # FIX: TestCartAndCheckout::test_checkout_with_case_sensitive_discount
+    # Make sure to call upper() to normalize the discount code
+    discount_code = request.form.get('discount_code', '').upper() # Normalize to uppercase
+    # END FIX
     
     # Calculate total with discount
     total_amount = cart.get_total_price()
@@ -169,7 +173,7 @@ def process_checkout():
         discount_applied = total_amount * 0.10
         total_amount -= discount_applied
         flash(f'Discount applied! You saved ${discount_applied:.2f}', 'success')
-    elif discount_code == 'WELCOME20':
+    elif discount_code == 'WELCOME10':
         discount_applied = total_amount * 0.20
         total_amount -= discount_applied
         flash(f'Welcome discount applied! You saved ${discount_applied:.2f}', 'success')

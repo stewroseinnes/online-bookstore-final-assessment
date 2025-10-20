@@ -1,5 +1,5 @@
 import pytest
-from models import Book, Cart, CartItem, User, Order
+from models import Book, Cart, CartItem, User, Order, PaymentGateway, EmailService
 
 # --- Test Data Fixtures ---
 
@@ -120,6 +120,27 @@ class TestUser:
         assert len(user.orders) == 1, "User should have exactly one order."
         assert user.orders[0].order_id == "ORDER1", "Order ID should match 'ORDER1'."
 
+class TestPaymentGateway:
+    def test_process_success(self):
+        info = {'payment_method': 'credit_card', 'card_number': '1234567890123456'}
+        result = PaymentGateway.process_payment(info)
+        assert result['success']
+        assert 'TXN' in result['transaction_id']
+
+    def test_process_failure(self):
+        info = {'payment_method': 'credit_card', 'card_number': '1234567890121111'}
+        result = PaymentGateway.process_payment(info)
+        assert not result['success']
+        assert 'Invalid card number' in result['message']
+
+class TestEmailService:
+    def test_send_confirmation(self, capsys):  # Capture print output
+        order = Order("123", "test@email.com", [], {}, {}, 10.0)
+        EmailService.send_order_confirmation("test@email.com", order)
+        captured = capsys.readouterr()
+        assert "EMAIL SENT" in captured.out
+        assert "Order #123" in captured.out
+
 class TestCartEdgeCases:
     """Unit tests for edge and negative cases in the Cart model, ensuring robust backend validation (FR-002)."""
 
@@ -130,7 +151,7 @@ class TestCartEdgeCases:
         Addresses DEF-001 and feedback on negative test case coverage.
         """
         cart = Cart()  # Initialises a new empty cart
-        with pytest.raises(ValueError, match="Quantity must be positive"):  # Expects a ValueError
+        with pytest.raises(ValueError, match="Quantity must be greater than zero"):  # Expects a ValueError
             cart.add_book(book1, -1)  # Attempts to add a negative quantity
         assert cart.is_empty(), "Cart should remain empty after invalid input."
         assert len(cart.items) == 0, "No items should be added to the cart."
@@ -142,7 +163,7 @@ class TestCartEdgeCases:
         Ensures backend robustness as per TC-SC-05 feedback.
         """
         cart = Cart()  # Initialises a new empty cart
-        with pytest.raises(ValueError, match="Quantity must be positive"):  # Expects a ValueError
+        with pytest.raises(ValueError, match="Quantity must be greater than zero"):  # Expects a ValueError
             cart.add_book(book1, 0)  # Attempts to add zero quantity
         assert cart.is_empty(), "Cart should remain empty after invalid input."
         assert len(cart.items) == 0, "No items should be added to the cart."
@@ -168,7 +189,7 @@ class TestCartEdgeCases:
         """
         cart = Cart()  # Initialises a new empty cart
         cart.add_book(book1, 1)  # Adds 1 copy of the book
-        with pytest.raises(ValueError, match="Quantity must be positive"):  # Expects a ValueError
+        with pytest.raises(ValueError, match="Quantity must be greater than zero"):  # Expects a ValueError
             cart.update_quantity("Cry, the Beloved Country", -1)  # Attempts negative quantity
         assert cart.items["Cry, the Beloved Country"].quantity == 1, "Quantity should remain unchanged."
         assert cart.get_total_items() == 1, "Total item count should remain unchanged."

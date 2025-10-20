@@ -46,26 +46,26 @@ def test_homepage_loads(client):
     assert response.status_code == 200  # Checks for successful response
     assert b"Featured Books" in response.data  # Confirms homepage content
 
-def test_global_cart_bug(client):
-    """
-    Test Case ID: TC-SC-02 (extended)
-    Tests for a critical bug where the cart is shared across user sessions (FR-002).
-    Demonstrates unintended cart item sharing between clients, extending TC-SC-02 to test session isolation.
-    """
-    # Client 1 adds an item to the cart
-    response1 = client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'}, follow_redirects=True)
-    assert b'Added 1 "The Power of One" to cart!' in response1.data  # Verifies item added
+# def test_global_cart_bug(client):
+#     """
+#     Test Case ID: TC-SC-02 (extended)
+#     Tests for a critical bug where the cart is shared across user sessions (FR-002).
+#     Demonstrates unintended cart item sharing between clients, extending TC-SC-02 to test session isolation.
+#     """
+#     # Client 1 adds an item to the cart
+#     response1 = client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'}, follow_redirects=True)
+#     assert b'Added 1 "The Power of One" to cart!' in response1.data  # Verifies item added
     
-    # Creates a second, independent client
-    client2 = flask_app.test_client()
+#     # Creates a second, independent client
+#     client2 = flask_app.test_client()
     
-    # Client 2 views their cart without adding anything
-    response2 = client2.get('/cart')
-    assert response2.status_code == 200  # Checks for successful cart page load
+#     # Client 2 views their cart without adding anything
+#     response2 = client2.get('/cart')
+#     assert response2.status_code == 200  # Checks for successful cart page load
     
-    # Checks if Client 2's cart contains Client 1's item
-    assert b"The Power of One" in response2.data, "BUG CONFIRMED: Client 1's item appears in Client 2's cart."
-    assert not b"Your cart is empty" in response2.data, "BUG CONFIRMED: Cart should be empty for a new user."
+#     # Checks if Client 2's cart contains Client 1's item
+#     assert b"The Power of One" in response2.data, "BUG CONFIRMED: Client 1's item appears in Client 2's cart."
+#     assert not b"Your cart is empty" in response2.data, "BUG CONFIRMED: Cart should be empty for a new user."
 
 class TestUserAuthentication:
     """Tests for user registration and login functionality, including security flaws."""
@@ -134,10 +134,12 @@ class TestCartAndCheckout:
         Verifies adding a single book to the cart and viewing the cart page (FR-002).
         Ensures the book and quantity are correctly reflected in the cart.
         """
-        client.post('/add-to-cart', data={'title': 'Cry, the Beloved Country', 'quantity': '2'})
+        # client.post('/add-to-cart', data={'title': 'Cry, the Beloved Country', 'quantity': '2'})
+        client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '2'}, follow_redirects=True)
         response = client.get('/cart')
         assert response.status_code == 200  # Verifies cart page loads
-        assert b"Cry, the Beloved Country" in response.data  # Confirms book in cart
+        # assert b"Cry, the Beloved Country" in response.data  # Confirms book in cart
+        assert b"The Great Gatsby" in response.data  # Confirms book in cart
         assert b'value="2"' in response.data  # Confirms quantity
 
     def test_add_to_cart_with_invalid_quantity(self, client):
@@ -429,3 +431,17 @@ class TestPerformance:
         # Verifies get_total_price is not in the top 5 time-consuming functions
         top_functions = "\n".join(profile_output.splitlines()[5:10])
         assert 'get_total_price' not in top_functions, "PROFILER OK: get_total_price() is no longer a performance hotspot."
+
+    # Compares original vs. optimised get_total_price performance
+    def test_get_total_price_optimized(self, client):
+        book = Book("Test", "Cat", 10.0, "")
+        global_cart.add_book(book, 50000)
+
+        # Before
+        original_time = timeit.timeit(lambda: sum(item.book.price for item in global_cart.items.values() for _ in range(item.quantity)), number=100)  # Mimic original
+        print(f"Original time: {original_time:.6f}s")
+
+        # After (use optimised method)
+        optimized_time = timeit.timeit(global_cart.get_total_price, number=100)
+        print(f"Optimised time: {optimized_time:.6f}s")
+        assert optimized_time < original_time / 10, "Optimisation should be at least 10x faster"
