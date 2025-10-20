@@ -39,6 +39,10 @@ class Cart:
         self.items = {}  # Using dict with book title as key for easy lookup
 
     def add_book(self, book, quantity=1):
+        #### FIX: Added validation for quantity to fix TestCartEdgeCases::test_update_quantity_with_negative_input
+        if quantity <= 0:
+            raise ValueError("Quantity must be positive")
+        ####
         if book.title in self.items:
             self.items[book.title].quantity += quantity
         else:
