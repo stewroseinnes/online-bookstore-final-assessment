@@ -41,11 +41,3 @@ jobs:
           name: unit-test-results
           path: unit-results.xml
         if: always()  # Uploads results even on test failure
-
-      # Uploads coverage report as an artifact
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.xml
-        if: always()  # Ensures coverage report is always uploaded
