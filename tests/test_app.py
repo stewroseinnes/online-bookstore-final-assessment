@@ -10,287 +10,259 @@ from models import Book
 
 @pytest.fixture
 def app():
-    """Creates and-configures a new app instance for each test."""
+    """Configures a new Flask app instance for each test (Fixture for all test cases)."""
     flask_app.config.update({
-        "TESTING": True,
-        "SECRET_KEY": 'test_secret_key',
-        "WTF_CSRF_ENABLED": False,  # Disable CSRF for form tests
+        "TESTING": True,  # Enables testing mode
+        "SECRET_KEY": 'test_secret_key',  # Sets a test secret key
+        "WTF_CSRF_ENABLED": False,  # Disables CSRF protection for form testing
     })
-    yield flask_app
+    yield flask_app  # Yields the configured app for use in tests
 
 @pytest.fixture
 def client(app):
-    """Provides a test client for the app."""
-    return app.test_client()
+    """Creates a test client for the Flask app (Fixture for all test cases)."""
+    return app.test_client()  # Returns a client to simulate HTTP requests
 
 @pytest.fixture(autouse=True)
 def setup_teardown():
-    """Resets the global state before and after each test."""
-    global_cart.clear()
-    # Clear users added during tests to ensure isolation
+    """Clears global state before and after each test to ensure test isolation (Fixture for all test cases)."""
+    global_cart.clear()  # Empties the cart before test
+    # Removes test users to prevent state leakage
     users.pop('test@example.com', None)
     users.pop('USER@test.com', None)
     users.pop('user@test.com', None)
-    yield
-    global_cart.clear()
+    yield  # Allows the test to run
+    global_cart.clear()  # Empties the cart after test
 
 # --- Integration Tests ---
 
 def test_homepage_loads(client):
-    """Test that the homepage loads correctly."""
-    response = client.get('/')
-    assert response.status_code == 200
-    assert b"Featured Books" in response.data
+    """
+    Test Case ID: TC-BR-01
+    Verifies that the homepage loads and displays books correctly (FR-001).
+    Ensures the main content area shows the 'Featured Books' section.
+    """
+    response = client.get('/')  # Sends GET request to homepage
+    assert response.status_code == 200  # Checks for successful response
+    assert b"Featured Books" in response.data  # Confirms homepage content
 
 # def test_global_cart_bug(client):
 #     """
-#     This test explicitly demonstrates the CRITICAL bug where the cart is shared
-#     across all user sessions.
+#     Test Case ID: TC-SC-02 (extended)
+#     Tests for a critical bug where the cart is shared across user sessions (FR-002).
+#     Demonstrates unintended cart item sharing between clients, extending TC-SC-02 to test session isolation.
 #     """
 #     # Client 1 adds an item to the cart
-#     response1 = client.post('/add-to-cart', data={'title': '1984', 'quantity': '1'}, follow_redirects=True)
-#     assert b'Added 1 "1984" to cart!' in response1.data
+#     response1 = client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'}, follow_redirects=True)
+#     assert b'Added 1 "The Power of One" to cart!' in response1.data  # Verifies item added
     
-#     # Create a second, independent client
+#     # Creates a second, independent client
 #     client2 = flask_app.test_client()
     
-#     # Client 2 views their cart *without* adding anything
+#     # Client 2 views their cart without adding anything
 #     response2 = client2.get('/cart')
-#     assert response2.status_code == 200
+#     assert response2.status_code == 200  # Checks for successful cart page load
     
-#     # Check if Client 2's cart contains the item from Client 1
-#     assert b"1984" in response2.data, "BUG CONFIRMED: Item from Client 1 appears in Client 2's cart."
+#     # Checks if Client 2's cart contains Client 1's item
+#     assert b"The Power of One" in response2.data, "BUG CONFIRMED: Client 1's item appears in Client 2's cart."
 #     assert not b"Your cart is empty" in response2.data, "BUG CONFIRMED: Cart should be empty for a new user."
 
 class TestUserAuthentication:
-    """Tests covering user registration and login bugs."""
+    """Tests for user registration and login functionality, including security flaws."""
 
     def test_user_registration_and_login_plaintext_password(self, client):
-        """Tests registration and confirms the plaintext password security flaw."""
+        """
+        Test Case ID: TC-UA-01 (User Authentication)
+        Tests user registration and login, confirming plaintext password storage flaw (out of scope for FR-001/FR-002).
+        Verifies successful registration and login flow.
+        """
+        # Registers a test user
         client.post('/register', data={
             'name': 'Test User', 'email': 'test@example.com', 'password': 'password123'
         }, follow_redirects=True)
         
+        # Verifies user was added and password is stored in plaintext
         assert 'test@example.com' in users
         assert users['test@example.com'].password == 'password123', "SECURITY FLAW: Password stored as plaintext."
 
-        client.get('/logout', follow_redirects=True)
+        client.get('/logout', follow_redirects=True)  # Logs out user
+        # Attempts login with registered credentials
         response = client.post('/login', data={
             'email': 'test@example.com', 'password': 'password123'
         }, follow_redirects=True)
-        assert b'Logged in successfully!' in response.data
+        assert b'Logged in successfully!' in response.data  # Confirms successful login
 
     def test_invalid_login(self, client):
-        """Tests login with incorrect credentials."""
+        """
+        Test Case ID: TC-UA-02 (User Authentication)
+        Tests login with incorrect credentials (out of scope for FR-001/FR-002).
+        Verifies appropriate error handling for invalid login attempts.
+        """
         response = client.post('/login', data={'email': 'wrong@user.com', 'password': 'wrongpassword'}, follow_redirects=True)
-        assert b'Invalid email or password' in response.data
+        assert b'Invalid email or password' in response.data  # Verifies error message
 
     def test_register_with_invalid_email_format(self, client):
-        """Tests that the system allows registration with an invalid email format."""
+        """
+        Test Case ID: TC-UA-03 (User Authentication)
+        Tests registration with an invalid email format, confirming a bug (out of scope for FR-001/FR-002).
+        Verifies that the system incorrectly allows invalid emails.
+        """
         response = client.post('/register', data={
             'name': 'Invalid Email User', 'email': 'not-an-email', 'password': 'password'
         }, follow_redirects=True)
         assert b'Account created successfully!' in response.data, "BUG CONFIRMED: Registration succeeded with an invalid email."
 
     def test_register_with_duplicate_email_different_case(self, client):
-        """Tests if two users can register with the same email but different casing."""
-        # Register first user with lowercase email
+        """
+        Test Case ID: TC-UA-04 (User Authentication)
+        Tests if duplicate emails with different casing are allowed, confirming a bug (out of scope for FR-001/FR-002).
+        Verifies that the system incorrectly allows duplicate emails.
+        """
+        # Registers first user with lowercase email
         client.post('/register', data={'name': 'User One', 'email': 'user@test.com', 'password': 'password123'})
         
-        # Register second user with uppercase email
+        # Registers second user with uppercase email
         response = client.post('/register', data={'name': 'User Two', 'email': 'USER@test.com', 'password': 'password456'}, follow_redirects=True)
         assert b'Account created successfully!' in response.data, "BUG CONFIRMED: Duplicate user created with different email case."
 
 class TestCartAndCheckout:
-    """Tests covering cart management and checkout bugs."""
+    """Tests for cart management and checkout functionality, focusing on FR-002 and bugs."""
 
     def test_add_to_cart_and_view(self, client):
-        """Tests adding items to the cart and viewing the cart page."""
-        client.post('/add-to-cart', data={'title': 'Moby Dick', 'quantity': '2'})
+        """
+        Test Case ID: TC-SC-01
+        Verifies adding a single book to the cart and viewing the cart page (FR-002).
+        Ensures the book and quantity are correctly reflected in the cart.
+        """
+        client.post('/add-to-cart', data={'title': 'Cry, the Beloved Country', 'quantity': '2'})
         response = client.get('/cart')
-        assert response.status_code == 200
-        assert b"Moby Dick" in response.data
-        assert b'value="2"' in response.data
-
-    # def test_add_to_cart_with_invalid_quantity(self, client):
-    #     """Tests if the app crashes when a non-numeric quantity is submitted."""
-    #     # This post request should ideally be handled gracefully, but in the buggy code it will cause a 500 Internal Server Error
-    #     # A good test confirms this bug by checking that the server doesn't crash. We expect a 500 error here.
-    #     response = client.post('/add-to-cart', data={'title': '1984', 'quantity': 'abc'})
-    #     assert response.status_code == 500, "BUG CONFIRMED: App crashes on non-integer quantity input."
+        assert response.status_code == 200  # Verifies cart page loads
+        assert b"Cry, the Beloved Country" in response.data  # Confirms book in cart
+        assert b'value="2"' in response.data  # Confirms quantity
 
     def test_add_to_cart_with_invalid_quantity(self, client):
         """
-        Tests that the app handles non-integer quantity input gracefully
-        by flashing an error message and redirecting without crashing.
+        Test Case ID: TC-SC-08
+        Verifies that the app handles non-numeric quantity input gracefully (FR-002).
+        Addresses DEF-001 by ensuring an error message is displayed and the cart remains unchanged.
         """
-        # Action: Attempt to add a book with an invalid quantity
-        response = client.post('/add-to-cart', data={'title': '1984', 'quantity': 'abc'}, follow_redirects=True)
-
-        # Assert: Check for a successful response and the error message
-        assert response.status_code == 200
-        assert b"Invalid quantity. Please enter a valid number." in response.data
+        # Attempts to add a book with invalid quantity
+        response = client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': 'abc'}, follow_redirects=True)
         
-        # Assert: Ensure the cart is still empty
-        assert global_cart.is_empty(), "Cart should not be modified after invalid input."
+        assert response.status_code == 200  # Verifies successful response
+        assert b"Invalid quantity. Please enter a valid number." in response.data  # Checks for error message
+        assert global_cart.is_empty(), "Cart should remain empty after invalid input."
 
     def test_update_cart_quantity_to_zero(self, client):
-        """Tests if updating quantity to 0 removes the item (it shouldn't in the buggy version)."""
-        client.post('/add-to-cart', data={'title': 'The Great Gatsby', 'quantity': '1'})
-        client.post('/update-cart', data={'title': 'The Great Gatsby', 'quantity': '0'}, follow_redirects=True)
+        """
+        Test Case ID: TC-SC-05
+        Verifies that updating a book's quantity to 0 incorrectly leaves the item in the cart (FR-002).
+        Confirms a bug where the item is not removed.
+        """
+        client.post('/add-to-cart', data={'title': 'Disgrace', 'quantity': '1'})
+        client.post('/update-cart', data={'title': 'Disgrace', 'quantity': '0'}, follow_redirects=True)
         
         response = client.get('/cart')
-        assert b'The Great Gatsby' in response.data, "BUG CONFIRMED: Item not removed when quantity is updated to 0."
-        assert b'value="0"' in response.data
-
-    # def test_remove_from_cart(self, client):
-    #     """Tests removing an item from the cart."""
-    #     client.post('/add-to-cart', data={'title': '1984', 'quantity': '1'})
-    #     response = client.post('/remove-from-cart', data={'title': '1984'}, follow_redirects=True)
-    #     assert b'Removed "1984" from cart!' in response.data
-    #     assert b"1984" not in response.data
-
-    # # NEW, CORRECTED TEST
-    # def test_remove_from_cart(self, client):
-    #     """
-    #     Tests removing a book from the cart and verifying the flash message.
-    #     """
-    #     # First, add a book to the cart to ensure it's not empty
-    #     client.post('/add-to-cart', data={'title': '1984', 'quantity': '1'})
-        
-    #     # Action: Remove the book, ensuring the redirect is followed
-    #     response = client.post('/remove-from-cart', data={'title': '1984'}, follow_redirects=True)
-
-    #     # Assert: Check for a successful response and the confirmation message
-    #     assert response.status_code == 200
-    #     assert b'Removed "1984" from cart!' in response.data
-        
-    #     # Assert: Ensure the cart is now empty
-    #     assert global_cart.is_empty(), "Cart should be empty after removing the item."
-
+        assert b'Disgrace' in response.data, "BUG CONFIRMED: Item not removed when quantity updated to 0."
+        assert b'value="0"' in response.data  # Confirms zero quantity displayed
 
     def test_remove_from_cart(self, client):
         """
-        Tests removing a book from the cart by manually following the redirect.
-        This helps isolate errors between the POST action and the subsequent GET page load.
+        Test Case ID: TC-SC-04
+        Verifies removing a book from the cart by manually following the redirect (FR-002).
+        Ensures the book is removed and a confirmation message is displayed.
         """
-        # Arrange: Add a book to the cart so we can remove it.
-        client.post('/add-to-cart', data={'title': '1984', 'quantity': '1'})
+        # Adds a book to the cart
+        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
         
-        # Action 1: Post to the remove-from-cart URL.
-        # We expect a 302 redirect to the '/cart' page.
-        # We are NOT following redirects here.
-        response_post = client.post('/remove-from-cart', data={'title': '1984'})
+        # Sends POST request to remove book without following redirect
+        response_post = client.post('/remove-from-cart', data={'title': 'The Power of One'})
         
-        # Assert 1: Check that the server is telling us to redirect.
+        # Verifies redirect response
         assert response_post.status_code == 302, "Expected a redirect after removing an item."
-        assert response_post.location == "/cart", "The redirect location should be '/cart'."
+        assert response_post.location == "/cart", "Redirect should point to '/cart'."
 
-        # Action 2: Manually follow the redirect by making a GET request.
-        # The flashed message from the previous request will be in the session,
-        # so this request should render it.
+        # Manually follows the redirect to the cart page
         response_get = client.get('/cart')
-
-        # Assert 2: Check the final page load.
-        assert response_get.status_code == 200, "The cart page should load successfully after the redirect."
-        assert b'Removed "1984" from your cart.' in response_get.data, "Flash message should be visible on the cart page."
         
-        # Assert 3: Ensure the cart is now empty
-        assert global_cart.is_empty(), "Cart should be empty after removing the item."
-
-
-
-    # def test_checkout_with_case_sensitive_discount(self, client):
-    #     """Tests if a discount code fails when entered in a different case."""
-    #     client.post('/add-to-cart', data={'title': 'I Ching', 'quantity': '1'}) # Price 18.99
-    #     checkout_data = {
-    #         'name': 'Test User', 'email': 'test@checkout.com', 'address': '123 Lane',
-    #         'city': 'Testville', 'zip_code': '12345', 'payment_method': 'credit_card',
-    #         'card_number': '1234567890123456', 'expiry_date': '12/25', 'cvv': '123',
-    #         'discount_code': 'save10' # Lowercase version of 'SAVE10'
-    #     }
-    #     response = client.post('/process-checkout', data=checkout_data, follow_redirects=True)
-    #     assert b'Invalid discount code' in response.data, "BUG CONFIRMED: Discount code is case-sensitive."
+        # Verifies cart page and flash message
+        assert response_get.status_code == 200, "Cart page should load successfully."
+        assert b'Removed "The Power of One" from your cart.' in response_get.data, "Flash message should confirm removal."
+        assert global_cart.is_empty(), "Cart should be empty after item removal."
 
     def test_checkout_with_case_sensitive_discount(self, client):
         """
-        Tests that the discount code is now case-insensitive and
-        applies correctly when entered in lowercase.
+        Test Case ID: TC-SC-06 (extended)
+        Verifies that discount codes are case-insensitive and applied correctly (FR-002).
+        Tests successful discount application, extending TC-SC-06 for discount functionality.
         """
-        # Arrange: Add a book to the cart
-        client.post('/add-to-cart', data={'title': '1984', 'quantity': '1'})
+        # Adds a book to the cart
+        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
         
-        # Action: Checkout using a lowercase discount code
+        # Submits checkout with lowercase discount code
         checkout_data = {
             'name': 'Test User', 'email': 'test@example.com', 'address': '123 Test St',
             'city': 'Testville', 'zip_code': '12345', 'payment_method': 'credit_card',
             'card_number': '1234567890123456', 'expiry_date': '12/25', 'cvv': '123',
-            'discount_code': 'save10'  # Use lowercase to test the fix
+            'discount_code': 'save10'  # Tests lowercase discount code
         }
         response = client.post('/process-checkout', data=checkout_data, follow_redirects=True)
-        # Assert: Check for a successful page load and the discount success message
+        
+        # Verifies successful checkout and discount application
         assert response.status_code == 200
-        assert b'Discount applied! You saved' in response.data, "The discount success message should be displayed."
-        assert b'Invalid discount code' not in response.data, "The invalid code message should not be displayed."
+        assert b'Discount applied! You saved' in response.data, "Discount success message should be displayed."
+        assert b'Invalid discount code' not in response.data, "Invalid code message should not appear."
 
-    
     def test_checkout_with_missing_payment_details(self, client):
-        """Tests if checkout proceeds with empty credit card fields."""
-        client.post('/add-to-cart', data={'title': '1984', 'quantity': '1'})
+        """
+        Test Case ID: TC-SC-CH-01 (Checkout-specific)
+        Verifies that checkout fails with empty credit card fields (FR-002).
+        Ensures validation prevents proceeding with incomplete payment details.
+        """
+        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
         checkout_data = {
             'name': 'Test User', 'email': 'test@checkout.com', 'address': '123 Lane',
             'city': 'Testville', 'zip_code': '12345', 'payment_method': 'credit_card',
-            'card_number': '', 'expiry_date': '', 'cvv': '' # Empty fields
+            'card_number': '', 'expiry_date': '', 'cvv': ''  # Empty payment fields
         }
         response = client.post('/process-checkout', data=checkout_data, follow_redirects=True)
         assert b'Please fill in all credit card details' in response.data, "BUG CONFIRMED: Validation for empty payment fields is faulty."
 
-    # def test_checkout_flow_success(self, client):
-    #     """Tests the end-to-end checkout process for a successful payment."""
-    #     client.post('/add-to-cart', data={'title': 'I Ching', 'quantity': '1'})
-    #     checkout_data = {
-    #         'name': 'Test User', 'email': 'test@checkout.com', 'address': '123 Checkout Lane',
-    #         'city': 'Testville', 'zip_code': '12345', 'payment_method': 'credit_card',
-    #         'card_number': '1234 5678 9012 3456', 'expiry_date': '12/25', 'cvv': '123'
-    #     }
-    #     response = client.post('/process-checkout', data=checkout_data, follow_redirects=True)
-    #     assert response.status_code == 200
-    #     assert b'Payment successful!' in response.data
-    #     assert global_cart.is_empty(), "Cart should be cleared after a successful order."
-
     def test_checkout_flow_success(self, client):
         """
-        Tests the entire checkout flow by manually following the redirect to
-        isolate any issues between the POST processing and the final GET request.
+        Test Case ID: TC-SC-CH-02 (Checkout-specific)
+        Verifies the full checkout flow with valid payment details (FR-002).
+        Tests successful payment and order confirmation by manually following redirects.
         """
-        # Arrange: Add a book and get checkout data
-        client.post('/add-to-cart', data={'title': '1984', 'quantity': '1'})
+        # Adds a book to the cart
+        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
         checkout_data = {
             'name': 'Test User', 'email': 'test@example.com', 'address': '123 Test St',
             'city': 'Testville', 'zip_code': '12345', 'payment_method': 'credit_card',
             'card_number': '1234567890123456', 'expiry_date': '12/25', 'cvv': '123'
         }
 
-        # Action 1: Post to the process-checkout URL without following redirects.
-        # We expect a 302 redirect response.
+        # Sends POST request to process checkout without following redirect
         response_post = client.post('/process-checkout', data=checkout_data)
-
-        # Assert 1: Check that the server is telling us to redirect.
+        
+        # Verifies redirect response
         assert response_post.status_code == 302, "Expected a redirect after processing payment."
-        # The location header contains the URL of the confirmation page.
-        redirect_location = response_post.headers['Location']
-        assert '/order-confirmation/' in redirect_location, "The redirect should go to the order confirmation page."
+        assert '/order-confirmation/' in response_post.headers['Location'], "Redirect should go to order confirmation page."
 
-        # Action 2: Manually follow the redirect by making a GET request to the location provided.
-        response_get = client.get(redirect_location)
-
-        # Assert 2: Check the final page load and the flash message.
-        assert response_get.status_code == 200, "The order confirmation page should load successfully."
-        assert b'Payment successful!' in response_get.data, "The success flash message should be visible on the confirmation page."
+        # Manually follows the redirect to the confirmation page
+        response_get = client.get(response_post.headers['Location'])
+        
+        # Verifies successful confirmation page load and message
+        assert response_get.status_code == 200, "Order confirmation page should load successfully."
+        assert b'Payment successful!' in response_get.data, "Success message should be displayed."
 
     def test_checkout_payment_failure(self, client):
-        """Tests that the checkout process handles a failed payment correctly."""
-        client.post('/add-to-cart', data={'title': 'Moby Dick', 'quantity': '1'})
+        """
+        Test Case ID: TC-SC-CH-03 (Checkout-specific)
+        Verifies that the checkout process handles a failed payment correctly (FR-002).
+        Ensures the cart remains unchanged and an error is displayed.
+        """
+        client.post('/add-to-cart', data={'title': 'Cry, the Beloved Country', 'quantity': '1'})
         checkout_data = {
             'name': 'Fail User', 'email': 'fail@checkout.com', 'address': '404 Error Street',
             'city': 'Failburg', 'zip_code': '54321', 'payment_method': 'credit_card',
@@ -301,147 +273,159 @@ class TestCartAndCheckout:
         assert b'Checkout' in response.data
         assert not global_cart.is_empty(), "Cart should not be cleared after a failed order."
 
+    def test_browse_books_empty_inventory(self, client, monkeypatch):
+        """
+        Test Case ID: TC-BR-02
+        Verifies that the homepage displays an appropriate message when no books are available (FR-001).
+        Addresses feedback on edge-case coverage for book browsing.
+        """
+        # Arrange: Temporarily empty the global BOOKS list
+        monkeypatch.setattr('app.BOOKS', [])
+        
+        # Action: Navigate to the homepage
+        response = client.get('/')
+        
+        # Assert: Check for successful response and empty inventory message
+        assert response.status_code == 200, "Homepage should load successfully."
+        assert b"No books available at this time" in response.data, "Expected message for empty inventory."
+        assert b"Featured Books" not in response.data, "Featured Books section should not appear."
+
+    def test_add_to_cart_negative_quantity(self, client):
+        """
+        Test Case ID: TC-SC-09
+        Verifies that adding a book with a negative quantity is rejected gracefully (FR-002).
+        Addresses DEF-001 and feedback on negative test coverage.
+        """
+        # Action: Attempt to add a book with a negative quantity
+        response = client.post('/add-to-cart', data={'title': 'Cry, the Beloved Country', 'quantity': '-1'}, follow_redirects=True)
+        
+        # Assert: Check for error message and unchanged cart
+        assert response.status_code == 200, "Response should be successful with an error message."
+        assert b"Quantity must be positive" in response.data, "Expected error message for negative quantity."
+        assert global_cart.is_empty(), "Cart should remain empty after invalid input."
+
+    def test_update_cart_non_numeric_quantity(self, client):
+        """
+        Test Case ID: TC-SC-10
+        Verifies that updating a cart with a non-numeric quantity is handled gracefully (FR-002).
+        Addresses DEF-001, TC-SC-08, and feedback on negative test coverage.
+        """
+        # Arrange: Add a book to the cart
+        client.post('/add-to-cart', data={'title': 'The Power of One', 'quantity': '1'})
+        
+        # Action: Attempt to update with a non-numeric quantity
+        response = client.post('/update-cart', data={'title': 'The Power of One', 'quantity': 'abc'}, follow_redirects=True)
+        
+        # Assert: Check for error message and unchanged cart state
+        assert response.status_code == 200, "Response should be successful with an error message."
+        assert b"Invalid quantity. Please enter a valid number." in response.data, "Expected error message for non-numeric input."
+        assert global_cart.items['The Power of One'].quantity == 1, "Cart quantity should remain unchanged."
+        assert b'value="1"' in response.data, "Cart page should reflect original quantity."
+
+    def test_checkout_empty_cart(self, client):
+        """
+        Test Case ID: TC-SC-07
+        Verifies that users cannot proceed to checkout with an empty cart (FR-002).
+        Mirrors TC-SC-07 and supports integration test expansion.
+        """
+        # Action: Attempt to access the checkout page with an empty cart
+        response = client.get('/checkout', follow_redirects=True)
+        
+        # Assert: Check for redirect to homepage and error message
+        assert response.status_code == 200, "Should redirect to homepage."
+        assert b"Your cart is empty." in response.data, "Expected empty cart error message."
+        assert b"Checkout" not in response.data, "Checkout page should not be accessible."
+
+    def test_remove_non_existent_book(self, client):
+        """
+        Test Case ID: TC-SC-11
+        Verifies that attempting to remove a non-existent book does not affect the cart (FR-002).
+        Addresses feedback on edge-case coverage.
+        """
+        # Arrange: Add a book to the cart
+        client.post('/add-to-cart', data={'title': 'Disgrace', 'quantity': '1'})
+        
+        # Action: Attempt to remove a non-existent book
+        response = client.post('/remove-from-cart', data={'title': 'Born a Crime'}, follow_redirects=True)
+        
+        # Assert: Check that cart state is unchanged and no error occurs
+        assert response.status_code == 200, "Response should be successful."
+        assert b"Disgrace" in response.data, "Existing book should remain in the cart."
+        assert b"Born a Crime" not in response.data, "Non-existent book should not appear."
+        assert global_cart.items['Disgrace'].quantity == 1, "Cart quantity should remain unchanged."
+
 class TestPerformance:
     """
-    Performance tests to identify and measure code inefficiencies.
-    These tests use timeit and cProfile to gather metrics.
+    Performance tests to measure code efficiency using timeit and cProfile (not tied to specific TC-ID).
+    Identifies and verifies fixes for performance bottlenecks.
     """
     
-    # def test_get_total_price_efficiency(self):
-    #     """
-    #     Measures the performance of the buggy get_total_price method.
-    #     The inefficiency is a nested loop that becomes very slow with large quantities.
-    #     """
-    #     book = Book("Performance Test Book", "Test", 10.00, "")
-    #     global_cart.add_book(book, 1000)  # Add a large quantity of one book
-
-    #     # Use timeit to measure the execution time
-    #     execution_time = timeit.timeit(lambda: global_cart.get_total_price(), number=100)
-        
-    #     print(f"\n[PERF] Inefficient get_total_price (1000 items) took: {execution_time:.6f}s for 100 runs.")
-        
-    #     # This assertion will fail on an optimized version, proving the bug.
-    #     # A fast implementation would be well under 0.01s.
-    #     assert execution_time > 0.01, "PERFORMANCE BUG: get_total_price is unexpectedly slow."
-
     def test_get_total_price_is_efficient(self, client):
         """
-        Measures the performance of the get_total_price method to ensure it is efficient.
-        A fast implementation should be well under 0.01s for 100 runs.
+        Test Case ID: TC-PF-01 (Performance)
+        Measures the performance of the get_total_price method to ensure efficiency (FR-002).
+        Verifies that execution time is within acceptable limits for large quantities.
         """
         # Arrange: Add a book with a large quantity
         book = Book("Performance Test Book", "Test", 10.00, "")
         global_cart.add_book(book, 50000)
 
-        # Action: Use timeit to measure the execution time
+        # Action: Measure execution time of get_total_price
         execution_time = timeit.timeit(lambda: global_cart.get_total_price(), number=100)
         
-        print(f"\n[PERF] Efficient get_total_price (1000 items) took: {execution_time:.6f}s for 100 runs.")
+        print(f"\n[PERF] Efficient get_total_price (50000 items) took: {execution_time:.6f}s for 100 runs.")
         
-        # Assert: The execution time should now be very low, proving the fix.
+        # Assert: Verify performance is within acceptable limits
         assert execution_time < 0.01, "PERFORMANCE REGRESSION: get_total_price is unexpectedly slow."
 
     def test_get_book_by_title_efficiency(self, monkeypatch):
         """
-        Measures the performance of the get_book_by_title function.
-        The inefficiency is iterating through a list (O(n)) instead of using a dictionary lookup (O(1)).
+        Test Case ID: TC-PF-02 (Performance)
+        Measures the performance of get_book_by_title with a large book list (FR-001).
+        Highlights inefficiency in list iteration (O(n)) vs. dictionary lookup (O(1)).
         """
-        # Create a large list of books to demonstrate the scaling issue
+        # Generates a large list of books
         large_book_list = [Book(f"Book {i}", "Cat", 10, "") for i in range(2000)]
         last_book_title = "Book 1999"
         
-        # Temporarily replace the global BOOKS list with our large list for this test
+        # Temporarily replaces global BOOKS with large list
         monkeypatch.setattr('app.BOOKS', large_book_list)
 
+        # Measures execution time for retrieving the last book
         execution_time = timeit.timeit(lambda: get_book_by_title(last_book_title), number=1000)
 
         print(f"\n[PERF] Inefficient get_book_by_title (2000 books) took: {execution_time:.6f}s for 1000 runs.")
         assert execution_time > 0.001, "PERFORMANCE BUG: get_book_by_title is slow with many books."
 
-    # def test_checkout_process_profiling(self, client):
-    #     """
-    #     Uses cProfile to analyze the entire checkout process and pinpoint bottlenecks.
-    #     This test will highlight that get_total_price is the most time-consuming part.
-    #     """
-    #     # Set up the cart for checkout
-    #     client.post('/add-to-cart', data={'title': 'I Ching', 'quantity': '50'})
-    #     checkout_data = {
-    #         'name': 'Profile User', 'email': 'profile@test.com', 'address': '123 Profile Lane',
-    #         'city': 'Proville', 'zip_code': '54321', 'payment_method': 'credit_card',
-    #         'card_number': '1234567890123456', 'expiry_date': '12/25', 'cvv': '123'
-    #     }
-
-    #     # Create a profiler
-    #     profiler = cProfile.Profile()
-        
-    #     # Run the checkout process under the profiler's control
-    #     profiler.enable()
-    #     client.post('/process-checkout', data=checkout_data, follow_redirects=True)
-    #     profiler.disable()
-
-    #     # Analyze the results
-    #     stream = StringIO()
-    #     stats = pstats.Stats(profiler, stream=stream).sort_stats('cumulative')
-    #     stats.print_stats(10)  # Print the top 10 most time-consuming functions
-
-    #     profile_output = stream.getvalue()
-    #     print("\n[PROFILE] Checkout Process Analysis:")
-    #     print(profile_output)
-
-    #     # This assertion confirms that get_total_price is a significant part of the profile.
-    #     assert 'get_total_price' in profile_output, "PROFILER WARNING: get_total_price() is a performance hotspot."
-
     def test_checkout_process_profiling_is_efficient(self, client):
         """
-        Uses cProfile to analyze the checkout process and verify that
-        get_total_price() is no longer a performance hotspot after optimization.
+        Test Case ID: TC-PF-03 (Performance)
+        Profiles the checkout process to confirm get_total_price is not a bottleneck (FR-002).
+        Uses cProfile to verify performance improvements.
         """
-        # Arrange: Set up the cart with a significant number of items
-        client.post('/add-to-cart', data={'title': 'I Ching', 'quantity': '500'})
+        # Sets up cart with a large number of items
+        client.post('/add-to-cart', data={'title': 'Born a Crime', 'quantity': '500'})
         checkout_data = {
             'name': 'Profile User', 'email': 'profile@test.com', 'address': '123 Profile Lane',
             'city': 'Proville', 'zip_code': '54321', 'payment_method': 'credit_card',
             'card_number': '1234567890123456', 'expiry_date': '12/25', 'cvv': '123'
         }
 
-        # Action: Run the checkout process under the profiler
+        # Profiles the checkout process
         profiler = cProfile.Profile()
         profiler.enable()
         client.post('/process-checkout', data=checkout_data, follow_redirects=True)
         profiler.disable()
 
-        # Assert: Analyze the profiler's output
+        # Analyses profiler output
         stream = StringIO()
-        # Sort by 'tottime' (total time spent in a function, excluding sub-calls)
-        # to get a clear view of the biggest bottlenecks.
-        stats = pstats.Stats(profiler, stream=stream).sort_stats('tottime')
-        stats.print_stats(15) # Print the top 15 functions
+        stats = pstats.Stats(profiler, stream=stream).sort_stats('tottime')  # Sorts by time spent in functions
+        stats.print_stats(15)  # Prints top 15 time-consuming functions
 
         profile_output = stream.getvalue()
         print("\n[PROFILE] Efficient Checkout Process Analysis:")
         print(profile_output)
 
-        # The first few lines of the output show the functions with the most self-time.
-        # We assert that our optimized function is NOT in the top 5, confirming it's no longer a hotspot.
+        # Verifies get_total_price is not in the top 5 time-consuming functions
         top_functions = "\n".join(profile_output.splitlines()[5:10])
-        assert 'get_total_price' not in top_functions, \
-            "PROFILER OK: get_total_price() is no longer a performance hotspot."
-
-
-# def test_list_all_routes(client):
-#     """
-#     Diagnostic test: Prints all registered routes in the application.
-#     Helps debug 404 errors by showing what routes Flask is aware of.
-#     """
-#     import sys
-#     app = client.application
-#     output = []
-#     for rule in app.url_map.iter_rules():
-#         methods = ','.join(sorted(rule.methods))
-#         output.append(f"Endpoint: {rule.endpoint:35s} Methods: {methods:30s} Rule: {str(rule)}")
-
-#     print("\n\n--- DIAGNOSTIC: REGISTERED FLASK ROUTES ---", file=sys.stderr)
-#     for line in sorted(output):
-#         print(line, file=sys.stderr)
-#     print("-------------------------------------------\n", file=sys.stderr)
-#     assert False, "This is a diagnostic test. Check the printout above for your routes."
+        assert 'get_total_price' not in top_functions, "PROFILER OK: get_total_price() is no longer a performance hotspot."
