@@ -31,7 +31,7 @@ jobs:
        # Runs all unit tests with coverage reporting
       - name: Run Unit Tests
         run: |
-          pytest tests/ --junitxml=unit-results.xml --cov=app --cov=models --cov-report=xml
+          pytest tests/ --junitxml=unit-results.xml
         continue-on-error: true  # Continues to upload results even if tests fail
 
       # Uploads test results as an artifact
