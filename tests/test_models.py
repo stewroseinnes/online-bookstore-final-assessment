@@ -99,7 +99,7 @@ class TestUser:
         Verifies that a user is created with the correct attributes (out of scope for FR-001/FR-002).
         Confirms plaintext password storage flaw and correct attribute initialization.
         """
-        user = User("test@example.com", "password123", "Test User", "123 Test St")  # Creates a new user
+        user = User("test@example.com", "password123", "Test User", "123 Test St")  # Creates a new user with all attributes
         assert user.email == "test@example.com", "Email should match input."
         assert user.password == "password123", "CRITICAL FLAW: Password stored in plaintext."
         assert user.name == "Test User", "Name should match input."
